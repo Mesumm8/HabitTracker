@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:habittracker/components/my_drawer.dart';
 import 'package:habittracker/components/my_habit_tile.dart';
+import 'package:habittracker/components/my_heat_map.dart';
 import 'package:habittracker/database/habit_databse.dart';
 import 'package:habittracker/models/habit.dart';
 import 'package:habittracker/util/habit_util.dart';
@@ -78,18 +79,21 @@ class _HomePageState extends State<HomePage> {
     //set the controllers text to the habits current name
     textController.text = habit.name;
 
-    showDialog(context: context, builder: (context) => AlertDialog(
-      content: TextField(
-        controller: textController,
-      ),
-      actions: [
-         //save button
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        content: TextField(controller: textController),
+        actions: [
+          //save button
           MaterialButton(
             onPressed: () {
               //update habit name
               String newHabitName = textController.text;
               //save to db
-              context.read<HabitDatabse>().updateHabitName(habit.id, newHabitName);
+              context.read<HabitDatabse>().updateHabitName(
+                habit.id,
+                newHabitName,
+              );
               //pop box
               Navigator.pop(context);
               //clean controller
@@ -107,16 +111,19 @@ class _HomePageState extends State<HomePage> {
             },
             child: const Text("Cancel"),
           ),
-
-      ],
-    ));
+        ],
+      ),
+    );
   }
+
   //delete habit
   void deleteHabitBox(Habit habit) {
-    showDialog(context: context, builder: (context) => AlertDialog(
-      title: Text("Are you sure you want to delete?"),
-      actions: [
-         //delete button
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text("Are you sure you want to delete?"),
+        actions: [
+          //delete button
           MaterialButton(
             onPressed: () {
               //save to db
@@ -134,9 +141,9 @@ class _HomePageState extends State<HomePage> {
             },
             child: const Text("Cancel"),
           ),
-
-      ],
-    ));
+        ],
+      ),
+    );
   }
 
   @override
@@ -155,7 +162,38 @@ class _HomePageState extends State<HomePage> {
         backgroundColor: Theme.of(context).colorScheme.tertiary,
         child: const Icon(Icons.add),
       ),
-      body: _buildHabitList(),
+      body: ListView(
+        children: [
+          //Heat map
+          _buildHeatMap(),
+          //HabitList
+          _buildHabitList(),
+        ],
+      ),
+    );
+  }
+
+  //build heat map
+  Widget _buildHeatMap() {
+    // habit db
+    final habitDatabse = context.watch<HabitDatabse>();
+    //current habit
+    List<Habit> currentHabits = habitDatabse.currentHabit;
+    //return heat map ui
+    return FutureBuilder<DateTime?>(
+      future: habitDatabse.getFirstLaunchDate(),
+      builder: (context, snapshot) {
+        // once the data is available -> build heatmap
+        if (snapshot.hasData) {
+          return MyHeatMap(
+            startDate: snapshot.data!,
+            datasets: prepHeatMapDataset(currentHabits));
+        }
+        //handle case where no data is req
+        else {
+          return Container();
+        }
+      },
     );
   }
 
@@ -168,6 +206,9 @@ class _HomePageState extends State<HomePage> {
 
     //return list of habits ui
     return ListView.builder(
+      itemCount: currentHabits.length,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
       itemBuilder: (context, index) {
         //get each indiv habit
         final habit = currentHabits[index];
